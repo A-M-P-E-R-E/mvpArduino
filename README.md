@@ -25,13 +25,6 @@ Parâmetros usados (idênticos ao sketch):
 | Janela de picos / nº de picos | 5000 ms / 3 |
 | Tensão máxima do sensor EMG | 2,0 V (referência do ADC: 3,3 V) |
 
-## Publicar no GitHub Pages
-
-1. Crie um repositório e envie o `index.html` para a raiz.
-2. Vá em **Settings → Pages**.
-3. Em **Source**, escolha **Deploy from a branch**, selecione a branch `main` e a pasta `/ (root)`.
-4. Aguarde alguns minutos. O painel ficará em `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`.
-
 ## Usando o painel
 
 ### Modo simulação (padrão)
