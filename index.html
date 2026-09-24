@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMPERE — Monitor EMG</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#050a0e;--panel:#0a1520;--border:#0e2a3a;--accent:#00d4ff;--accent2:#00ff99;--danger:#ff3c5a;--text:#c8dde8;--dim:#3a5a6a;--mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 40px;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 3px,rgba(0,0,0,.08) 3px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:100}
+header{width:100%;max-width:960px;display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:28px}
+.logo{font-family:var(--mono);font-size:26px;color:var(--accent);letter-spacing:4px;text-shadow:0 0 18px rgba(0,212,255,.5)}
+.logo span{color:var(--accent2)}
+.subtitle{font-size:13px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;width:100%;max-width:960px;margin-bottom:20px}
+.card,.chart-wrapper,.net{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px;position:relative;overflow:hidden;width:100%}
+.grid .card{width:auto}
+.card::after,.net::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:.5}
+.card-label,.chart-title{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.card-value{font-family:var(--mono);font-size:36px;color:var(--accent);text-shadow:0 0 20px rgba(0,212,255,.4);line-height:1}
+.card-unit{font-size:13px;color:var(--dim);margin-top:4px;font-family:var(--mono)}
+#card-eenm::after{background:var(--danger)}#card-eenm.ativo::after{background:var(--accent2)}
+#eenm-valor{font-family:var(--mono);font-size:22px;color:var(--danger);text-shadow:0 0 20px rgba(255,60,90,.5);letter-spacing:2px}
+#card-eenm.ativo #eenm-valor{color:var(--accent2);text-shadow:0 0 20px rgba(0,255,153,.5)}
+#card-estado::after{opacity:.3}
+.estado-badges{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:3px;border:1px solid var(--dim);color:var(--dim);letter-spacing:1px;transition:all .2s}
+.badge.ativo{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.08);box-shadow:0 0 10px rgba(0,212,255,.2)}
+.badge.ativo.verde{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,153,.08);box-shadow:0 0 10px rgba(0,255,153,.2)}
+.chart-wrapper{max-width:960px;margin-bottom:20px}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.chart-header .chart-title{margin:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 8px var(--danger);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+canvas{width:100%!important}
+.bar-wrap{width:100%;height:6px;background:var(--border);border-radius:3px;margin-top:10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .1s linear;box-shadow:0 0 10px rgba(0,212,255,.4)}
+/* Painel de rede / teste */
+.net{max-width:960px}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.row label{display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+input[type=text],input[type=password]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:14px;padding:8px 10px}
+input:focus{outline:none;border-color:var(--accent)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{font-family:var(--mono);font-size:12px;letter-spacing:1px;padding:8px 14px;border-radius:4px;border:1px solid var(--accent);background:rgba(0,212,255,.08);color:var(--accent);cursor:pointer}
+button:hover{background:rgba(0,212,255,.18)}
+button.on{border-color:var(--accent2);color:var(--accent2);background:rgba(0,255,153,.1)}
+#status{font-family:var(--mono);font-size:12px;color:var(--dim);margin-left:auto}
+#sim{margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--dim)}
+#sim input[type=range]{flex:1;min-width:160px;accent-color:var(--accent)}
+pre{margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:10px;font-family:var(--mono);font-size:12px;color:var(--text);overflow-x:auto;display:none;white-space:pre}
+small{display:block;margin-top:10px;font-size:13px;color:var(--dim);line-height:1.4}
+@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}#card-estado{grid-column:1/-1}.card-value{font-size:28px}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AMP<span>E</span>RE</div>
+  <div class="subtitle">Sistema de Monitoramento EMG</div>
+</header>
+
+<div class="grid">
+  <div class="card" id="card-rms">
+    <div class="card-label">RMS Muscular</div>
+    <div class="card-value" id="rms-valor">0.0</div>
+    <div class="card-unit">% do máximo</div>
+    <div class="bar-wrap"><div class="bar-fill" id="rms-bar" style="width:0%"></div></div>
+  </div>
+  <div class="card" id="card-eenm">
+    <div class="card-label">EENM</div>
+    <div id="eenm-valor">DESATIVADA</div>
+  </div>
+  <div class="card" id="card-estado">
+    <div class="card-label">Fase do Sistema</div>
+    <div class="estado-badges">
+      <div class="badge" id="b0">AGUARD</div>
+      <div class="badge" id="b1">CONF 1s</div>
+      <div class="badge" id="b2">ESPERA 5s</div>
+      <div class="badge verde" id="b3">PULSOS</div>
+    </div>
+  </div>
+</div>
+
+<div class="chart-wrapper">
+  <div class="chart-header">
+    <div class="chart-title">Sinal EMG — Tempo Real</div>
+    <div class="dot"></div>
+  </div>
+  <canvas id="grafico"></canvas>
+</div>
+
+<!-- Painel de rede e teste -->
+<div class="net">
+  <div class="card-label">Conexão com o Arduino (ESP32)</div>
+  <div class="row">
+    <div><label for="ssid">Nome da rede (SSID)</label><input type="text" id="ssid" placeholder="MOURA_2G" autocomplete="off"></div>
+    <div><label for="pass">Senha da rede</label><input type="password" id="pass" placeholder="••••••••" autocomplete="off"></div>
+    <div><label for="ip">IP do ESP32 (Monitor Serial)</label><input type="text" id="ip" placeholder="192.168.0.50" autocomplete="off"></div>
+  </div>
+  <div class="btns">
+    <button id="btn-real">CONECTAR AO ARDUINO</button>
+    <button id="btn-sim" class="on">MODO SIMULAÇÃO</button>
+    <button id="btn-cod">GERAR TRECHO PARA O SKETCH</button>
+    <span id="status">● simulação ativa</span>
+  </div>
+  <div id="sim">
+    <span>Esforço muscular simulado:</span>
+    <input type="range" id="esforco" min="0" max="100" value="80">
+    <span id="esforco-v">80%</span>
+    <button id="b-fad">FADIGA (20%)</button>
+    <button id="b-pico">PICO (80%)</button>
+  </div>
+  <pre id="codigo"></pre>
+  <small>Um navegador não consegue ligar o ESP32 ao Wi-Fi: SSID e senha são usados para gerar as linhas do sketch (<code>ssid</code>/<code>password</code>) que você grava pela Arduino IDE. Nada é enviado a servidores; a senha fica só nesta aba. Para dados reais, o ESP32 e este dispositivo precisam estar na mesma rede e o IP aparece no Monitor Serial (115200).</small>
+</div>
+
+<script>
+// ===== Parâmetros idênticos ao sketch AMPERE.ino =====
+const LIMIAR=50, TEMPO_CONFIRMACAO=1000, TEMPO_ATIVACAO=5000, JANELA_PICOS=5000, MAX_PICOS=3;
+
+const grafico=new Chart(document.getElementById("grafico"),{
+  type:"line",
+  data:{labels:Array(150).fill(""),datasets:[
+    {label:"RMS (%)",data:Array(150).fill(0),borderColor:"#00d4ff",backgroundColor:"rgba(0,212,255,0.06)",borderWidth:1.5,tension:.3,pointRadius:0,fill:true},
+    {label:"Limiar",data:Array(150).fill(LIMIAR),borderColor:"rgba(255,60,90,0.6)",borderWidth:1,borderDash:[6,4],pointRadius:0,fill:false}
+  ]},
+  options:{animation:false,responsive:true,
+    plugins:{legend:{labels:{color:"#3a5a6a",font:{family:"'Share Tech Mono'"}}}},
+    scales:{x:{ticks:{display:false},grid:{color:"rgba(14,42,58,0.8)"}},
+            y:{min:0,max:100,ticks:{color:"#3a5a6a",font:{family:"'Share Tech Mono'",size:11}},grid:{color:"rgba(14,42,58,0.8)"}}}}
+});
+const dados=grafico.data.datasets[0].data;
+const badges=[0,1,2,3].map(i=>document.getElementById("b"+i));
+const $=id=>document.getElementById(id);
+
+// Atualiza a interface (mesma lógica da função atualizar() do sketch)
+function render({rms,eenm,estado}){
+  rms=parseFloat(rms.toFixed(1));
+  $("rms-valor").textContent=rms.toFixed(1);
+  $("rms-bar").style.width=Math.min(rms,100)+"%";
+  $("card-eenm").classList.toggle("ativo",eenm);
+  $("eenm-valor").textContent=eenm?"ATIVADA":"DESATIVADA";
+  badges.forEach((b,i)=>b.classList.toggle("ativo",i===estado));
+  dados.push(rms);dados.shift();
+  grafico.update();
+}
+
+// ===== Máquina de estados (port fiel do loop() do sketch) =====
+const M={estado:0,inicio:0,picos:[],acimaAnt:false};
+function maquina(rms,agora){
+  const abaixo=rms<LIMIAR;
+  switch(M.estado){
+    case 0: if(abaixo){M.estado=1;M.inicio=agora;} break;
+    case 1: if(!abaixo)M.estado=0;
+            else if(agora-M.inicio>=TEMPO_CONFIRMACAO){M.estado=2;M.inicio=agora;} break;
+    case 2: if(!abaixo)M.estado=0;
+            else if(agora-M.inicio>=TEMPO_ATIVACAO){M.estado=3;M.picos=[];M.acimaAnt=false;} break;
+    case 3:{
+      const acima=!abaixo;
+      if(acima&&!M.acimaAnt){
+        if(M.picos.length<MAX_PICOS)M.picos.push(agora);
+        else{M.picos.shift();M.picos.push(agora);}
+        if(M.picos.length>=MAX_PICOS&&(agora-M.picos[0])<JANELA_PICOS)M.estado=0;
+      }
+      M.acimaAnt=acima;break;}
+  }
+}
+
+// ===== Modos: simulação x Arduino real =====
+let modo="sim",tSim=null,tPoll=null,rmsSim=80,falhas=0;
+const status=(t,c)=>{$("status").textContent="● "+t;$("status").style.color=c||"var(--dim)"};
+
+function parar(){clearInterval(tSim);clearInterval(tPoll);}
+function resetar(){Object.assign(M,{estado:0,inicio:0,picos:[],acimaAnt:false});dados.fill(0);}
+
+function iniciarSim(){
+  parar();resetar();modo="sim";
+  $("btn-sim").classList.add("on");$("btn-real").classList.remove("on");$("sim").style.display="flex";
+  status("simulação ativa","var(--accent)");
+  tSim=setInterval(()=>maquina(rmsSim,performance.now()),20);          // ~ciclo de 20 ms do loop()
+  tPoll=setInterval(()=>{
+    const r=Math.max(0,Math.min(100,rmsSim+(Math.random()-.5)*4));
+    render({rms:r,eenm:M.estado===3,estado:M.estado});
+  },100);
+}
+
+function iniciarReal(){
+  const ip=$("ip").value.trim().replace(/^https?:\/\//,"").replace(/\/.*$/,"");
+  if(!ip){status("informe o IP do ESP32","var(--danger)");return;}
+  parar();resetar();modo="real";falhas=0;
+  $("btn-real").classList.add("on");$("btn-sim").classList.remove("on");$("sim").style.display="none";
+  status("conectando a "+ip+" …","var(--accent)");
+  tPoll=setInterval(async()=>{
+    try{
+      const res=await fetch("http://"+ip+"/dados",{cache:"no-store"});   // rota /dados do ESP32
+      const d=await res.json();
+      falhas=0;status("conectado — "+ip,"var(--accent2)");
+      render({rms:d.rms,eenm:d.eenm,estado:d.estado});
+    }catch(e){
+      if(++falhas>=10)status("sem resposta de "+ip+" (ver instruções abaixo)","var(--danger)");
+    }
+  },100);
+}
+
+$("btn-sim").onclick=iniciarSim;
+$("btn-real").onclick=iniciarReal;
+$("esforco").oninput=e=>{rmsSim=+e.target.value;$("esforco-v").textContent=rmsSim+"%";};
+const setEsf=v=>{rmsSim=v;$("esforco").value=v;$("esforco-v").textContent=v+"%";};
+$("b-fad").onclick=()=>setEsf(20);
+$("b-pico").onclick=()=>setEsf(80);
+
+// Gera as linhas para colar no sketch + ajuste de CORS necessário para o GitHub Pages
+$("btn-cod").onclick=()=>{
+  const s=($("ssid").value||"NOME_DA_REDE").replace(/["\\]/g,"\\$&");
+  const p=($("pass").value||"SENHA").replace(/["\\]/g,"\\$&");
+  const c=$("codigo");
+  c.textContent=
+`// 1) Substitua no topo do AMPERE.ino:
+const char* ssid     = "${s}";
+const char* password = "${p}";
+
+// 2) No setup(), logo antes de server.begin(), adicione (libera o acesso desta página):
+server.enableCORS(true);`;
+  c.style.display=c.style.display==="block"?"none":"block";
+};
+
+iniciarSim();
+</script>
+</body>
+</html>
